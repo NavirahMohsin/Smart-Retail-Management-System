@@ -62,7 +62,7 @@ def get_db():
     finally:
         db.close()
 
-
+#UserID in header 
 def get_current_user(x_user_id: int = Header(..., alias="X-User-ID"), db: Session = Depends(get_db)) -> User:
     user = db.get(User, x_user_id)
     if not user:
@@ -82,7 +82,7 @@ def parse_iso_date(value: Optional[str]) -> Optional[date]:
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=f"Invalid date format: {value}") from exc
 
-
+#Converting db onjects into python dictionaries to be returned as JSON objects
 def serialize_product(product: Product) -> dict:
     return {
         "product_id": product.product_id,
@@ -262,7 +262,7 @@ def serialize_credit_transaction(txn: CreditTransaction) -> dict:
         "created_at": txn.transaction_date.isoformat() if txn.transaction_date else None,
     }
 
-
+#Customer risk segmentation
 def compute_risk_level(balance: float, limit: float) -> tuple[float, str]:
     if limit <= 0:
         return 0.0, "low"
@@ -273,7 +273,7 @@ def compute_risk_level(balance: float, limit: float) -> tuple[float, str]:
         return usage, "medium"
     return usage, "low"
 
-
+#Category for product
 def resolve_category(db: Session, category_name: Optional[str], category_id: Optional[int]) -> Optional[Category]:
     if category_id:
         return db.get(Category, category_id)
@@ -452,7 +452,7 @@ class RazorpayOrderRequest(BaseModel):
     receipt: Optional[str] = None
     notes: Optional[dict] = None
 
-
+#Seed data into db if db is empty
 @app.on_event("startup")
 def startup_event() -> None:
     init_db()
@@ -470,6 +470,8 @@ def health():
     return {"status": "ok"}
 
 
+
+#Login
 @app.post("/api/auth/login")
 def login(payload: LoginRequest, db: Session = Depends(get_db)):
     user = db.scalar(select(User).where(User.email == payload.email))
