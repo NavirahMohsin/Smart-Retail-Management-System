@@ -37,7 +37,10 @@ load_dotenv()
 app = FastAPI(title="Sonik Backend V2", version="2.0.0")
 
 from app.ml.router import router as ml_router
+from app.internal_sql import router as internal_sql_router
+
 app.include_router(ml_router)
+app.include_router(internal_sql_router)
 
 frontend_urls = [
     "http://localhost:5173",

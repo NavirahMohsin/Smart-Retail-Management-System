@@ -1,30 +1,45 @@
 import os
-from pathlib import Path
-
+import httpx
 from dotenv import load_dotenv
-from sqlalchemy import create_engine, text
-
 
 load_dotenv()
 
-CHATBOT_ROOT = Path(__file__).resolve().parent.parent
-PROJECT_ROOT = CHATBOT_ROOT.parent
-DEFAULT_BACKEND_DB_URL = f"sqlite:///{(PROJECT_ROOT / 'backend' / 'data' / 'storefront_v2.db').as_posix()}"
-DATABASE_URL = os.getenv("DATABASE_URL", DEFAULT_BACKEND_DB_URL)
-
-connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
-engine = create_engine(DATABASE_URL, future=True, connect_args=connect_args)
+# Use Railway's internal network to call the backend
+# Default to localhost for local development
+BACKEND_INTERNAL_URL = os.getenv(
+    "BACKEND_INTERNAL_URL",
+    "http://localhost:8000"
+)
+INTERNAL_API_KEY = os.getenv("INTERNAL_API_KEY", "change-me-in-railway")
 
 
 def execute_query(sql: str):
     """
-    Execute a read-only SQL query against the shared backend database.
+    Execute a read-only SQL query by calling the backend's internal SQL endpoint.
+    This avoids direct database file access and uses Railway's internal network.
+    
     Returns a list of dict rows.
     """
     statement = sql.strip()
     if not statement.upper().startswith("SELECT"):
         raise ValueError("Only SELECT queries are permitted.")
 
-    with engine.connect() as connection:
-        result = connection.execute(text(statement))
-        return [dict(row) for row in result.mappings().all()]
+    try:
+        response = httpx.post(
+            f"{BACKEND_INTERNAL_URL}/internal/execute-sql",
+            json={"query": statement},
+            headers={"x-internal-key": INTERNAL_API_KEY},
+            timeout=15.0,
+        )
+        
+        if response.status_code != 200:
+            error_detail = response.json().get("detail", "Unknown error")
+            raise RuntimeError(f"SQL execution failed: {error_detail}")
+        
+        data = response.json()
+        return data.get("rows", [])
+    
+    except httpx.RequestError as e:
+        raise RuntimeError(f"Failed to connect to backend: {str(e)}")
+    except Exception as e:
+        raise RuntimeError(f"SQL execution error: {str(e)}")
