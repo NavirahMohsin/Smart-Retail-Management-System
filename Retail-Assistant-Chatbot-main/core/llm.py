@@ -6,7 +6,7 @@ load_dotenv()
 
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
-MODEL = "llama-3.1-8b-instant"
+MODEL = "openai/gpt-oss-120b"
 
 # Max turns of history to keep (each turn = 1 user + 1 assistant message)
 MAX_HISTORY_TURNS = 10
